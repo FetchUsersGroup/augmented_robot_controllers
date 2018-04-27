@@ -1,0 +1,8 @@
+<library path="libaugmented_robot_controllers">
+  <class name="augmented_robot_controllers/CartesianTwistAvoidController"
+         type="augmented_robot_controllers::CartesianTwistAvoidController"
+         base_class_type="robot_controllers::Controller">
+    <description>Cartesian Twist Avoid Controller</description>
+  </class>
+
+</library>

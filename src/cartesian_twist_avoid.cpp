@@ -73,10 +73,6 @@ namespace augmented_robot_controllers
     nh.param<std::string>("root_name", root_link, "torso_lift_link");
     nh.param<std::string>("tip_name", tip_link, "wrist_roll_link");
 
-    // This is needed for collision avoidance
-    nh.param<std::string>("l_gripper_joint", l_name_, "l_gripper_finger_joint");
-    nh.param<std::string>("r_gripper_joint", r_name_, "r_gripper_finger_joint");
-
     // Load URDF
     urdf::Model model;
     if (!model.initParam("robot_description"))
@@ -86,9 +82,9 @@ namespace augmented_robot_controllers
     }
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
     robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
-    planning_scene = new planning_scene::PlanningScene(kinematic_model);
-    current_state = &planning_scene->getCurrentStateNonConst();
-    current_state->setToDefaultValues();
+    planning_scene_ = new planning_scene::PlanningScene(kinematic_model);
+    current_state_ = &planning_scene_->getCurrentStateNonConst();
+    current_state_->setToDefaultValues();
 
     ROS_INFO("INITIALIZED planning scene");
 
@@ -124,7 +120,7 @@ namespace augmented_robot_controllers
 
     if (joints_.size() != num_joints)
     {
-      ROS_ERROR("Inconsistant joint count %d, %d", num_joints, int(joints_.size()));
+      ROS_ERROR("Inconsistent joint count %d, %d", num_joints, int(joints_.size()));
       return -1;
     }
 
@@ -132,6 +128,10 @@ namespace augmented_robot_controllers
     {
       last_tgt_jnt_vel_(ii) = 0.0;
     }
+
+    // Subscribe to joint_publisher
+    extra_joint_sub_ =
+      nh.subscribe("/joint_states", 1, &CartesianTwistAvoidController::updateJoints, this);
 
     // Subscribe to command
     command_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(
@@ -252,7 +252,6 @@ namespace augmented_robot_controllers
         tgt_jnt_vel_(ii) = 1.0;
       }
     }
-
     // Limit accelerations while trying to keep same resulting direction
     // somewhere between previous and current value
     scale = 1.0;
@@ -312,33 +311,27 @@ namespace augmented_robot_controllers
     // extrapolating 4+1 timesteps in the future
     for (unsigned ii = 0; ii < num_joints; ++ii)
     {
-      extrp_jnt_pos_(ii) = tgt_jnt_pos_(ii) + tgt_jnt_vel_(ii) * dt_sec * 4;
+      extrp_jnt_pos_(ii) = tgt_jnt_pos_(ii) + tgt_jnt_vel_(ii) * dt_sec * 9;
     }
 
     for (unsigned jj = 0; jj < joints_.size(); jj++)
     {
       // ROS_INFO_STREAM("Joint
       // Name:"<<joints_[jj]->getName()<<"Value"<<joints_[jj]->getPosition());
-      current_state->setJointPositions(joints_[jj]->getName(), &extrp_jnt_pos_(jj));
+      current_state_->setJointPositions(joints_[jj]->getName(), &extrp_jnt_pos_(jj));
     }
     // The finger joints must be manually updated
-    current_state->setJointPositions(r_name_,
-                                     new double(manager_->getJointHandle(r_name_)->getPosition()));
-    current_state->setJointPositions(l_name_,
-                                     new double(manager_->getJointHandle(l_name_)->getPosition()));
 
-    collision_request.verbose = true;
     collision_result.clear();
     // planning_scene->getCurrentState().printStatePositions();
 
-    planning_scene->checkSelfCollision(collision_request, collision_result);
-    ROS_INFO_STREAM("state is " << (collision_result.collision ? "in" : "not in") << " self "
-                                                                                     "collision");
+    planning_scene_->checkSelfCollision(collision_request, collision_result);
     // ROS_INFO_STREAM("Num of contact  is "<<collision_result.contact_count << "
     // self collision");
 
     if (collision_result.collision)
     {
+      ROS_WARN_STREAM("COllision is Imminent Stopping the movement");
       for (size_t ii = 0; ii < joints_.size(); ++ii)
       {
         // We will send the last valid know state
@@ -427,6 +420,23 @@ namespace augmented_robot_controllers
   std::vector<std::string> CartesianTwistAvoidController::getClaimedNames()
   {
     return getCommandedNames();
+  }
+
+  void CartesianTwistAvoidController::updateJoints(const sensor_msgs::JointStatePtr& msg)
+  {
+    // We only want to update the joints that are not commanded by this controller
+    std::vector<std::string> joint_names{"l_gripper_finger_joint", "r_gripper_finger_joint",
+                                         "head_pan_joint",         "head_tilt_joint",
+                                         "torso_lift_joint",       "bellows_joint"};
+
+    for (size_t i = 0; i < msg->name.size(); i++)
+    {
+      if (std::find(std::begin(joint_names), std::end(joint_names), msg->name[i]) !=
+          std::end(joint_names))
+      {
+        current_state_->setJointPositions(msg->name[i], &msg->position[i]);
+      }
+    }
   }
 
 }  // namespace robot_controllers

@@ -134,6 +134,10 @@ public:
   /** @brief Controller command. */
   void command(const geometry_msgs::TwistStamped::ConstPtr& goal);
 
+  /** @brief joint state_update */
+  void updateJoints(const sensor_msgs::JointStatePtr& msg);
+  
+
 private:
   KDL::Frame getPose();
 
@@ -146,8 +150,6 @@ private:
   boost::shared_ptr<KDL::ChainIkSolverVel_wdls> solver_;
   boost::shared_ptr<KDL::ChainFkSolverPos_recursive> fksolver_;
   KDL::JntArray tgt_jnt_pos_;
-  KDL::JntArray last_tgt_jnt_pos_;
-  KDL::JntArray extrp_jnt_pos_;
   KDL::JntArray tgt_jnt_vel_;
   KDL::JntArray last_tgt_jnt_vel_;
 
@@ -161,11 +163,14 @@ private:
   std::string twist_command_frame_;
   ros::Time last_command_time_;
   bool is_active_;
-  //These are uses for collision avoidance
-  std::string l_name_;
-  std::string r_name_;
-  planning_scene::PlanningScene* planning_scene;
-  robot_state::RobotState*  current_state;
+  //These are used for collision avoidance
+  
+  KDL::JntArray last_tgt_jnt_pos_;
+  KDL::JntArray extrp_jnt_pos_;
+
+  ros::Subscriber extra_joint_sub_;
+  planning_scene::PlanningScene* planning_scene_;
+  robot_state::RobotState*  current_state_;
   collision_detection::CollisionRequest collision_request;
   collision_detection::CollisionResult collision_result;
 

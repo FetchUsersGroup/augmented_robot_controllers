@@ -208,10 +208,10 @@ namespace augmented_robot_controllers
 
     unsigned num_joints = joints_.size();
 
-    // if ((now - last_command_time) > ros::Duration(0.5))
-    //{
-    //  manager_->requestStop(getName());
-    //}
+     if ((now - last_command_time) > ros::Duration(0.5))
+    {
+      manager_->requestStop(getName());
+    }
 
     // change the twist here
     if (solver_->CartToJnt(tgt_jnt_pos_, twist, tgt_jnt_vel_) < 0)
@@ -365,11 +365,11 @@ namespace augmented_robot_controllers
       return;
     }
 
-    ////if (goal->header.frame_id.empty())
-    // {
-    //   manager_->requestStop(getName());
-    //   return;
-    // }
+    if (goal->header.frame_id.empty())
+    {
+       manager_->requestStop(getName());
+       return;
+    }
 
     KDL::Twist twist;
     twist(0) = goal->twist.linear.x;

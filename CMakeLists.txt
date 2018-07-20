@@ -3,7 +3,7 @@ project(augmented_robot_controllers)
 
 add_compile_options(-std=c++11)
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter -Wno-deprecated-declarations")
 endif()
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 find_package(orocos_kdl REQUIRED)
